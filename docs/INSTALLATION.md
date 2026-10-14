@@ -47,7 +47,7 @@ Nach Änderungen am TypeScript-Code `npm run compile` ausführen. Im Entwicklung
 
 ## Installierbares Paket
 
-Das aktuelle lokale Vorschaupaket wird mit `npm run package` unter `dist/kiconnect-vscode-0.1.0.vsix` erstellt. Es kann in VS Code über **Erweiterungen → … → Aus VSIX installieren…** installiert werden. Solange die persönliche Marketplace-Publisher-ID offen ist, dient es nur zur lokalen Erprobung.
+Das aktuelle lokale Vorschaupaket wird mit `npm run package` unter `dist/kiconnect-vscode-0.1.0.vsix` erstellt. Es kann in VS Code über **Erweiterungen → … → Aus VSIX installieren…** installiert werden. Solange das persönliche Marketplace-Publisher-Konto offen ist, dient es nur zur lokalen Erprobung.
 
 Eine eventuell lokal noch vorhandene Datei `kiconnect-vscode-0.0.1.vsix` stammt aus dem alten Stand und enthält die aktuellen Änderungen nicht. Sie wird nicht mehr im Repository ausgeliefert.
 

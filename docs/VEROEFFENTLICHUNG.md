@@ -26,7 +26,7 @@ Für eine Veröffentlichung ist ein persönlicher Publisher im Visual Studio Mar
 
 Der technische Paketname bleibt `kiconnect-vscode`. Die vollständige Erweiterungskennung besteht aus `publisher.name`. Deshalb die Publisher-ID vor der ersten öffentlichen Veröffentlichung festlegen und danach nicht beiläufig ändern.
 
-Offen ist die Erstellung und Bestätigung des persönlichen Publishers. Ein Herausgeber-Platzhalter ist keine verwendbare Kontokennung. Der Paketstand wird erst nach Abgleich mit der tatsächlichen Publisher-ID veröffentlicht.
+Offen ist die Erstellung und Bestätigung des persönlichen Publishers. Die vorgesehene ID `omed-ababakir` muss im eigenen Herausgeberkonto angelegt oder bestätigt werden. Der Paketstand wird erst nach Abgleich mit der tatsächlichen Publisher-ID veröffentlicht.
 
 ## Herausgeberkonto anlegen
 
@@ -58,8 +58,8 @@ npm test
 npm run package
 ```
 
-Das Ergebnis liegt unter `dist/kiconnect-vscode-0.1.0.vsix`. `npm run package` verwendet die im Projekt festgelegte Version des offiziellen Werkzeugs `@vscode/vsce`. Für diesen Entwicklungsstand wird weiterhin die Herausgeberkennung `your-publisher-id` verwendet. Das Paket ist damit nur eine lokale Vorschau, nicht das endgültige öffentliche Installationspaket.
+Das Ergebnis liegt unter `dist/kiconnect-vscode-0.1.0.vsix`. `npm run package` verwendet die im Projekt festgelegte Version des offiziellen Werkzeugs `@vscode/vsce`. Als vorgesehene Herausgeberkennung ist `omed-ababakir` eingetragen; sie wurde aus dem vorhandenen GitHub-Stand übernommen. Ein tatsächliches zugehöriges Publisher-Konto ist noch nicht bestätigt. Das Paket ist damit nur eine lokale Vorschau, nicht das endgültige öffentliche Installationspaket.
 
 Die API-Typen sind auf die unterstützte VS-Code-Mindestversion 1.104.0 festgelegt. Die Entwicklungswerkzeuge benötigen Node.js ab Version 22. Entwicklungsdateien, Quellkarten und Abhängigkeiten sind über `.vscodeignore` vom VSIX ausgeschlossen.
 
-Nach dem Anlegen des Publishers die echte ID einsetzen, die Vorschau neu bauen und das endgültige Paket erneut prüfen. Erst dieses Paket im Marketplace hochladen. Der GitHub-Prüfworkflow baut nur ein Paket und führt keine automatische Veröffentlichung aus.
+Nach dem Anlegen des Publishers die bestätigte ID abgleichen und bei Abweichung im Manifest ersetzen, die Vorschau neu bauen und das endgültige Paket erneut prüfen. Erst dieses Paket im Marketplace hochladen. Der GitHub-Prüfworkflow baut nur ein Paket und führt keine automatische Veröffentlichung aus.

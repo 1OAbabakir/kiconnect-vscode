@@ -3,7 +3,7 @@
   "displayName": "KI:connect",
   "description": "Inoffizieller KI:connect-Client für den VS-Code-Chat – mit gestreamten Antworten und Werkzeugaufrufen für geeignete Modelle.",
   "version": "0.1.0",
-  "publisher": "your-publisher-id",
+  "publisher": "omed-ababakir",
   "engines": {
     "vscode": "^1.104.0",
     "node": ">=22"

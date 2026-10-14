@@ -6,3 +6,6 @@ dist/
 .env.*
 !.env.example
 *.log
+
+# Bereits versionierte Ausgabedateien bleiben erhalten; neue lokale Ausgaben ignorieren.
+out/

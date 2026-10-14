@@ -20,7 +20,7 @@ Die normale Modellauswahl wurde während der Entwicklung vom Nutzer in VS Code e
 
 ## Offen vor der öffentlichen Veröffentlichung
 
-- Persönlichen Marketplace-Publisher anlegen und die tatsächliche ID ins Manifest übernehmen.
+- Persönlichen Marketplace-Publisher anlegen und prüfen, ob die vorgesehene Manifest-ID `omed-ababakir` diesem Konto entspricht.
 - Das endgültige Paket nach dieser Änderung erneut bauen und prüfen.
 - Chat und Agent-Werkzeugrunde mit dem endgültigen Paket in der Zielumgebung testen; insbesondere die erklärte Mindestversion berücksichtigen.
 - Die offenen Punkte der [rechtlichen Bestandsaufnahme](RECHTLICHE_PRUEFUNG.md) für den endgültigen Auftritt und die tatsächlich geltenden Dienstbedingungen klären.
