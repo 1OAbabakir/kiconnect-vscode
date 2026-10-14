@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>KI:connect – Code und Verbindung</title>
+  <rect width="256" height="256" rx="52" fill="#112D42"/>
+  <path d="M82 82 36 128l46 46M174 82l46 46-46 46" fill="none" stroke="#F4F7FA" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m145 79-34 98" stroke="#47D7C6" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="145" cy="79" r="12" fill="#47D7C6"/>
+  <circle cx="111" cy="177" r="12" fill="#47D7C6"/>
+</svg>

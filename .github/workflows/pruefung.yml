@@ -1,0 +1,35 @@
+name: Quellcode und Paket prüfen
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pruefung:
+    name: Tests und VSIX bauen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Abhängigkeiten installieren
+        run: npm ci --ignore-scripts
+      - name: Tests ausführen
+        run: npm test
+      - name: Installationspaket erstellen
+        run: npm run package
+      - name: Paket als Prüfergebnis bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiconnect-vsix
+          path: dist/*.vsix
+          if-no-files-found: error

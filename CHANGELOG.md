@@ -1,0 +1,18 @@
+# Änderungsübersicht
+
+## 0.1.0 – Veröffentlichung vorbereitet
+
+- KI:connect-Modelle im integrierten VS-Code-Chat auswählen.
+- API-Schlüssel vor der Ablage prüfen und über VS Code SecretStorage verwalten.
+- Gestreamte Antworten und den von VS Code übergebenen Verlauf übertragen.
+- OpenAI-kompatible Werkzeugaufrufe für geeignete Modelle verarbeiten.
+- Werkzeugfähigkeiten anhand von Metadaten und bekannten Modellfamilien zuordnen.
+- Abbrüche an laufende HTTP-Anfragen weiterreichen.
+- Eigene Bedienungstexte, Kommentare und Dokumentation auf Deutsch bereitstellen.
+- Automatisierte Tests für Schlüsselprüfung, Modellliste, Nachrichten, Werkzeuge und Abbrüche ergänzen.
+
+Diese Version ist für die Erstveröffentlichung vorbereitet. Dieser Eintrag bestätigt noch keine Veröffentlichung im Marketplace.
+
+## 0.0.1 – Ursprünglicher Stand
+
+- Erstes Grundgerüst für die Anbindung von KI:connect an VS Code.

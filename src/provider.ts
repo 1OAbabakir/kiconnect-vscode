@@ -1,68 +1,115 @@
 import * as vscode from 'vscode';
-import { KIConnectAPI } from './api';
+import { ChatMessage, ChatOptions, KIConnectAPI } from './api';
 
-/**
- * Implements the VS Code LanguageModelChatProvider API.
- * It forwards chat messages to KI:connect and streams the response back.
- */
-export class KIConnectChatProvider {
-  private readonly context: vscode.ExtensionContext;
+export const SECRET_KEY = 'kiconnect.apiKey';
 
-  constructor(context: vscode.ExtensionContext) {
-    this.context = context;
+export class KIConnectChatProvider implements vscode.LanguageModelChatProvider, vscode.Disposable {
+  private readonly changes = new vscode.EventEmitter<void>();
+  readonly onDidChangeLanguageModelChatInformation = this.changes.event;
+
+  constructor(private readonly context: vscode.ExtensionContext) {}
+
+  refresh(): void { this.changes.fire(); }
+  dispose(): void { this.changes.dispose(); }
+
+  private async withCancellation<T>(token: vscode.CancellationToken, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    const controller = new AbortController();
+    const subscription = token.onCancellationRequested(() => controller.abort());
+    try {
+      if (token.isCancellationRequested) throw new vscode.CancellationError();
+      return await run(controller.signal);
+    } catch (error) {
+      if (token.isCancellationRequested) throw new vscode.CancellationError();
+      throw error;
+    } finally { subscription.dispose(); }
   }
 
-  /** Load the stored API key */
-  private async getApiKey(): Promise<string | undefined> {
-    return this.context.secrets.get('kiconnect.apiKey');
+  async provideLanguageModelChatInformation(_options: vscode.PrepareLanguageModelChatModelOptions, token: vscode.CancellationToken): Promise<vscode.LanguageModelChatInformation[]> {
+    const key = await this.context.secrets.get(SECRET_KEY);
+    if (!key) return [];
+    return this.withCancellation(token, async signal => {
+      const models = await new KIConnectAPI(key).getModels(signal);
+      return models.map(model => ({
+        id: model.id, name: `KI:connect: ${model.name}`, family: model.id, version: '1',
+        // Zurückhaltende Vorgaben, da die Modellliste keine verlässlichen Tokengrenzen garantiert.
+        maxInputTokens: 8192, maxOutputTokens: 2048,
+        detail: model.toolCalling ? 'KI:connect · Werkzeuge' : 'KI:connect · Textchat',
+        capabilities: { imageInput: false, toolCalling: model.toolCalling },
+      }));
+    });
   }
 
-  /** Provide chat model information – required by the LanguageModelChatProvider interface */
-  async provideLanguageModelChatInformation(
-    _options: any,
-    _token: vscode.CancellationToken
-  ): Promise<any[]> {
-    // No additional model info needed here; models are registered individually.
-    return [];
-  }
-
-  async sendRequest(
-      request: any,
-      _context: any,
-      token: vscode.CancellationToken
-  ): Promise<any> {
-    const apiKey = await this.getApiKey();
-    if (!apiKey) {
-      throw new Error('KI:connect API key not configured – run the "Set API Key" command.');
-    }
-    const api = new KIConnectAPI(apiKey);
-    const modelId = request.model;
-
-    // Build a minimal messages array for the API.
-    // We include an optional empty system prompt and the user's current prompt.
-    const messages: Array<{ role: string; content: string }> = [
-      { role: 'system', content: '' },
-      { role: 'user', content: request.prompt },
-    ];
-
-    // Create a response object that streams data back to VS Code.
-    const response: any = { stream: { append: (s: string) => {}, end: () => {} } };
-    // Stream the API response.
-    (async () => {
-      try {
-        for await (const chunk of api.chat(modelId, messages)) {
-          if (token.isCancellationRequested) {
-            response.cancel();
-            break;
-          }
-          response.stream.append(chunk);
-        }
-        response.stream.end();
-      } catch (e: any) {
-        response.stream.append(`\n[Error] ${e.message}`);
-        response.stream.end();
+  private convertMessages(messages: readonly vscode.LanguageModelChatRequestMessage[]): ChatMessage[] {
+    const converted: ChatMessage[] = [];
+    const textContent = (parts: readonly unknown[]): string => parts.map(part => {
+      if (!(part instanceof vscode.LanguageModelTextPart)) {
+        throw new Error('Für diesen Inhaltstyp unterstützt KI:connect nur Textnachrichten; Bilder werden nicht unterstützt.');
       }
-    })();
-    return response;
+      return part.value;
+    }).join('');
+    for (const message of messages) {
+      const assistant = message.role === vscode.LanguageModelChatMessageRole.Assistant;
+      const text: vscode.LanguageModelTextPart[] = [];
+      const calls: NonNullable<ChatMessage['tool_calls']> = [];
+      const results: ChatMessage[] = [];
+      for (const part of message.content) {
+        if (part instanceof vscode.LanguageModelTextPart) text.push(part);
+        else if (part instanceof vscode.LanguageModelToolCallPart && assistant) {
+          calls.push({ id: part.callId, type: 'function', function: { name: part.name, arguments: JSON.stringify(part.input) } });
+        } else if (part instanceof vscode.LanguageModelToolResultPart && !assistant) {
+          results.push({ role: 'tool', tool_call_id: part.callId, content: textContent(part.content) });
+        } else {
+          throw new Error('Für diesen Inhaltstyp unterstützt KI:connect nur Textnachrichten; Bilder oder falsch zugeordnete Werkzeugnachrichten werden nicht unterstützt.');
+        }
+      }
+      // Werkzeugergebnisse müssen direkt auf die Aufrufe folgen, noch vor einer neuen Nutzernachricht.
+      converted.push(...results);
+      if (text.length || calls.length || !results.length) {
+        const entry: ChatMessage = { role: assistant ? 'assistant' : 'user', content: textContent(text) };
+        if (calls.length) entry.tool_calls = calls;
+        converted.push(entry);
+      }
+    }
+    return converted;
+  }
+
+  async provideLanguageModelChatResponse(
+    model: vscode.LanguageModelChatInformation,
+    messages: readonly vscode.LanguageModelChatRequestMessage[],
+    options: vscode.ProvideLanguageModelChatResponseOptions,
+    progress: vscode.Progress<vscode.LanguageModelResponsePart>,
+    token: vscode.CancellationToken
+  ): Promise<void> {
+    const key = await this.context.secrets.get(SECRET_KEY);
+    if (!key) throw new Error('Führe zuerst „KI:connect: API-Schlüssel hinterlegen“ aus.');
+    const tools = options.tools ?? [];
+    if (options.toolMode === vscode.LanguageModelChatToolMode.Required && !tools.length) {
+      throw new Error('Der Modus für erforderliche Werkzeugaufrufe benötigt mindestens ein Werkzeug.');
+    }
+    if (tools.length && model.capabilities?.toolCalling === false) {
+      throw new Error('Dieses KI:connect-Modell unterstützt keine Werkzeugaufrufe. Wähle ein Modell mit Werkzeugunterstützung.');
+    }
+    const requestOptions: ChatOptions = tools.length ? {
+      tools: tools.map(tool => ({ type: 'function', function: {
+        name: tool.name, description: tool.description,
+        parameters: tool.inputSchema ?? { type: 'object', properties: {} },
+      } })),
+      tool_choice: options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : 'auto',
+    } : {};
+    const converted = this.convertMessages(messages);
+    await this.withCancellation(token, async signal => {
+      for await (const chunk of new KIConnectAPI(key).chat(model.id, converted, signal, requestOptions)) {
+        if (token.isCancellationRequested) throw new vscode.CancellationError();
+        progress.report(typeof chunk === 'string'
+          ? new vscode.LanguageModelTextPart(chunk)
+          : new vscode.LanguageModelToolCallPart(chunk.callId, chunk.name, chunk.input));
+      }
+    });
+  }
+
+  async provideTokenCount(_model: vscode.LanguageModelChatInformation, text: string | vscode.LanguageModelChatRequestMessage, _token: vscode.CancellationToken): Promise<number> {
+    const content = typeof text === 'string' ? text : JSON.stringify(this.convertMessages([text]));
+    // Zurückhaltende Schätzung anhand der UTF-8-Bytes, kein modellspezifischer Tokenizer.
+    return new TextEncoder().encode(content).length;
   }
 }

@@ -1,0 +1,8 @@
+# Lokale Abhängigkeiten, Zugangsdaten und erzeugte Pakete
+node_modules/
+dist/
+*.vsix
+.env
+.env.*
+!.env.example
+*.log

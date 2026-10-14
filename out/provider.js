@@ -1,58 +1,153 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.KIConnectChatProvider = void 0;
+exports.KIConnectChatProvider = exports.SECRET_KEY = void 0;
+const vscode = __importStar(require("vscode"));
 const api_1 = require("./api");
-/**
- * Implements the VS Code LanguageModelChatProvider API.
- * It forwards chat messages to KI:connect and streams the response back.
- */
+exports.SECRET_KEY = 'kiconnect.apiKey';
 class KIConnectChatProvider {
     context;
+    changes = new vscode.EventEmitter();
+    onDidChangeLanguageModelChatInformation = this.changes.event;
     constructor(context) {
         this.context = context;
     }
-    /** Load the stored API key */
-    async getApiKey() {
-        return this.context.secrets.get('kiconnect.apiKey');
-    }
-    /** Provide chat model information – required by the LanguageModelChatProvider interface */
-    async provideLanguageModelChatInformation(_options, _token) {
-        // No additional model info needed here; models are registered individually.
-        return [];
-    }
-    async sendRequest(request, _context, token) {
-        const apiKey = await this.getApiKey();
-        if (!apiKey) {
-            throw new Error('KI:connect API key not configured – run the "Set API Key" command.');
+    refresh() { this.changes.fire(); }
+    dispose() { this.changes.dispose(); }
+    async withCancellation(token, run) {
+        const controller = new AbortController();
+        const subscription = token.onCancellationRequested(() => controller.abort());
+        try {
+            if (token.isCancellationRequested)
+                throw new vscode.CancellationError();
+            return await run(controller.signal);
         }
-        const api = new api_1.KIConnectAPI(apiKey);
-        const modelId = request.model;
-        // Build a minimal messages array for the API.
-        // We include an optional empty system prompt and the user's current prompt.
-        const messages = [
-            { role: 'system', content: '' },
-            { role: 'user', content: request.prompt },
-        ];
-        // Create a response object that streams data back to VS Code.
-        const response = { stream: { append: (s) => { }, end: () => { } } };
-        // Stream the API response.
-        (async () => {
-            try {
-                for await (const chunk of api.chat(modelId, messages)) {
-                    if (token.isCancellationRequested) {
-                        response.cancel();
-                        break;
-                    }
-                    response.stream.append(chunk);
+        catch (error) {
+            if (token.isCancellationRequested)
+                throw new vscode.CancellationError();
+            throw error;
+        }
+        finally {
+            subscription.dispose();
+        }
+    }
+    async provideLanguageModelChatInformation(_options, token) {
+        const key = await this.context.secrets.get(exports.SECRET_KEY);
+        if (!key)
+            return [];
+        return this.withCancellation(token, async (signal) => {
+            const models = await new api_1.KIConnectAPI(key).getModels(signal);
+            return models.map(model => ({
+                id: model.id, name: `KI:connect: ${model.name}`, family: model.id, version: '1',
+                // Zurückhaltende Vorgaben, da die Modellliste keine verlässlichen Tokengrenzen garantiert.
+                maxInputTokens: 8192, maxOutputTokens: 2048,
+                detail: model.toolCalling ? 'KI:connect · Werkzeuge' : 'KI:connect · Textchat',
+                capabilities: { imageInput: false, toolCalling: model.toolCalling },
+            }));
+        });
+    }
+    convertMessages(messages) {
+        const converted = [];
+        const textContent = (parts) => parts.map(part => {
+            if (!(part instanceof vscode.LanguageModelTextPart)) {
+                throw new Error('Für diesen Inhaltstyp unterstützt KI:connect nur Textnachrichten; Bilder werden nicht unterstützt.');
+            }
+            return part.value;
+        }).join('');
+        for (const message of messages) {
+            const assistant = message.role === vscode.LanguageModelChatMessageRole.Assistant;
+            const text = [];
+            const calls = [];
+            const results = [];
+            for (const part of message.content) {
+                if (part instanceof vscode.LanguageModelTextPart)
+                    text.push(part);
+                else if (part instanceof vscode.LanguageModelToolCallPart && assistant) {
+                    calls.push({ id: part.callId, type: 'function', function: { name: part.name, arguments: JSON.stringify(part.input) } });
                 }
-                response.stream.end();
+                else if (part instanceof vscode.LanguageModelToolResultPart && !assistant) {
+                    results.push({ role: 'tool', tool_call_id: part.callId, content: textContent(part.content) });
+                }
+                else {
+                    throw new Error('Für diesen Inhaltstyp unterstützt KI:connect nur Textnachrichten; Bilder oder falsch zugeordnete Werkzeugnachrichten werden nicht unterstützt.');
+                }
             }
-            catch (e) {
-                response.stream.append(`\n[Error] ${e.message}`);
-                response.stream.end();
+            // Werkzeugergebnisse müssen direkt auf die Aufrufe folgen, noch vor einer neuen Nutzernachricht.
+            converted.push(...results);
+            if (text.length || calls.length || !results.length) {
+                const entry = { role: assistant ? 'assistant' : 'user', content: textContent(text) };
+                if (calls.length)
+                    entry.tool_calls = calls;
+                converted.push(entry);
             }
-        })();
-        return response;
+        }
+        return converted;
+    }
+    async provideLanguageModelChatResponse(model, messages, options, progress, token) {
+        const key = await this.context.secrets.get(exports.SECRET_KEY);
+        if (!key)
+            throw new Error('Führe zuerst „KI:connect: API-Schlüssel hinterlegen“ aus.');
+        const tools = options.tools ?? [];
+        if (options.toolMode === vscode.LanguageModelChatToolMode.Required && !tools.length) {
+            throw new Error('Der Modus für erforderliche Werkzeugaufrufe benötigt mindestens ein Werkzeug.');
+        }
+        if (tools.length && model.capabilities?.toolCalling === false) {
+            throw new Error('Dieses KI:connect-Modell unterstützt keine Werkzeugaufrufe. Wähle ein Modell mit Werkzeugunterstützung.');
+        }
+        const requestOptions = tools.length ? {
+            tools: tools.map(tool => ({ type: 'function', function: {
+                    name: tool.name, description: tool.description,
+                    parameters: tool.inputSchema ?? { type: 'object', properties: {} },
+                } })),
+            tool_choice: options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : 'auto',
+        } : {};
+        const converted = this.convertMessages(messages);
+        await this.withCancellation(token, async (signal) => {
+            for await (const chunk of new api_1.KIConnectAPI(key).chat(model.id, converted, signal, requestOptions)) {
+                if (token.isCancellationRequested)
+                    throw new vscode.CancellationError();
+                progress.report(typeof chunk === 'string'
+                    ? new vscode.LanguageModelTextPart(chunk)
+                    : new vscode.LanguageModelToolCallPart(chunk.callId, chunk.name, chunk.input));
+            }
+        });
+    }
+    async provideTokenCount(_model, text, _token) {
+        const content = typeof text === 'string' ? text : JSON.stringify(this.convertMessages([text]));
+        // Zurückhaltende Schätzung anhand der UTF-8-Bytes, kein modellspezifischer Tokenizer.
+        return new TextEncoder().encode(content).length;
     }
 }
 exports.KIConnectChatProvider = KIConnectChatProvider;

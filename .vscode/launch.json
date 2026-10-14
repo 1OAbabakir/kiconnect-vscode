@@ -1,0 +1,22 @@
+{
+    // IntelliSense zeigt die verfügbaren Eigenschaften dieser Startkonfiguration.
+    // Bewege den Mauszeiger über eine Eigenschaft, um ihre Beschreibung zu lesen.
+    // Weitere Informationen: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "KI:connect-Erweiterung starten",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+            "outFiles": ["${workspaceFolder}/out/**/*.js"]
+        },
+        {
+            "type": "editor-browser",
+            "request": "launch",
+            "name": "Integrierten Browser für localhost öffnen",
+            "url": "http://localhost:8080",
+            "webRoot": "${workspaceFolder}"
+        }
+    ]
+}

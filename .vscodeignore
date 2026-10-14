@@ -1,0 +1,24 @@
+# Entwicklungsdateien gehören nicht in das Installationspaket.
+.vscode/**
+.github/**
+.gitignore
+.vscodeignore
+node_modules/**
+src/**
+test/**
+scripts/**
+assets/*.svg
+out/**/*.map
+tsconfig.json
+package-lock.json
+*.vsix
+dist/**
+
+# Lokale Zugangsdaten und Arbeitsumgebungen nie ausliefern.
+.env
+.env.*
+**/*.log
+.npmrc
+.aws/**
+.codex/**
+.agents/**

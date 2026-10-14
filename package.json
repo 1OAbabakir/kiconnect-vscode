@@ -1,24 +1,40 @@
 {
   "name": "kiconnect-vscode",
-  "displayName": "KI:connect VS Code Extension",
-  "description": "Unofficial VS Code extension that adds KI:connect models to the built‑in chat.",
-  "version": "0.0.1",
+  "displayName": "KI:connect",
+  "description": "Inoffizieller KI:connect-Client für den VS-Code-Chat – mit gestreamten Antworten und Werkzeugaufrufen für geeignete Modelle.",
+  "version": "0.1.0",
   "publisher": "your-publisher-id",
   "engines": {
-    "vscode": "^1.92.0"
+    "vscode": "^1.104.0",
+    "node": ">=22"
   },
-  "categories": ["AI"],
-  "activationEvents": ["*"],
+  "categories": [
+    "AI"
+  ],
+  "activationEvents": [
+    "onLanguageModelChatProvider:kiconnect"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "kiconnect.setApiKey",
-        "title": "KI:connect: Set API Key"
+        "title": "KI:connect: API-Schlüssel hinterlegen"
       },
       {
         "command": "kiconnect.clearApiKey",
-        "title": "KI:connect: Clear API Key"
+        "title": "KI:connect: API-Schlüssel entfernen"
+      },
+      {
+        "command": "kiconnect.openChat",
+        "title": "KI:connect: Chat öffnen"
+      }
+    ],
+    "languageModelChatProviders": [
+      {
+        "vendor": "kiconnect",
+        "displayName": "KI:connect",
+        "managementCommand": "kiconnect.setApiKey"
       }
     ]
   },
@@ -27,14 +43,34 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "node ./out/test/runTest.js"
+    "test": "node test/chat.test.cjs",
+    "package": "node scripts/package.cjs"
   },
   "devDependencies": {
-    "@types/vscode": "^1.92.0",
+    "@types/vscode": "1.104.0",
+    "@vscode/vsce": "4.0.0",
     "typescript": "^5.4.0"
-
   },
-  "dependencies": {
-    "node-fetch": "^3.3.2"
+  "author": "Omed Ababakir",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/1OAbabakir/kiconnect-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/1OAbabakir/kiconnect-vscode/issues"
+  },
+  "homepage": "https://github.com/1OAbabakir/kiconnect-vscode#readme",
+  "icon": "assets/icon.png",
+  "license": "MIT",
+  "keywords": [
+    "KI:connect",
+    "KI",
+    "Chat",
+    "NRW",
+    "Werkzeuge"
+  ],
+  "galleryBanner": {
+    "color": "#112D42",
+    "theme": "dark"
   }
 }

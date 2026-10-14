@@ -38,57 +38,57 @@ exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const provider_1 = require("./provider");
 const api_1 = require("./api");
-const SECRET_KEY = 'kiconnect.apiKey';
-/** Prompt for API key and store it securely */
-async function setApiKey(context) {
-    const key = await vscode.window.showInputBox({
-        prompt: 'Enter your KI:connect API key',
-        ignoreFocusOut: true,
-        password: true,
-    });
-    if (key) {
-        await context.secrets.store(SECRET_KEY, key);
-        vscode.window.showInformationMessage('KI:connect API key stored securely.');
-        // Refresh models after key change
-        await registerModels(context);
-    }
-}
-/** Remove stored API key */
-async function clearApiKey(context) {
-    await context.secrets.delete(SECRET_KEY);
-    vscode.window.showInformationMessage('KI:connect API key cleared.');
-}
-/** Fetch models from the API and register them with VS Code */
-async function registerModels(context) {
-    const apiKey = await context.secrets.get(SECRET_KEY);
-    if (!apiKey) {
-        // No key – nothing to register.
-        return;
-    }
-    const api = new api_1.KIConnectAPI(apiKey);
-    try {
-        const models = await api.getModels();
-        const disposables = [];
-        // Unregister any previous providers (VS Code disposes them automatically on reload).
-        for (const model of models) {
-            const provider = new provider_1.KIConnectChatProvider(context);
-            const disposable = vscode.lm.registerLanguageModelChatProvider(`kiconnect:${model.id}`, provider);
-            disposables.push(disposable);
-        }
-        // Keep disposables alive for the extension lifecycle
-        context.subscriptions.push(...disposables);
-    }
-    catch (e) {
-        vscode.window.showErrorMessage(`Failed to load KI:connect models: ${e.message}`);
-    }
-}
 function activate(context) {
-    // Register commands for API key handling
-    context.subscriptions.push(vscode.commands.registerCommand('kiconnect.setApiKey', () => setApiKey(context)), vscode.commands.registerCommand('kiconnect.clearApiKey', () => clearApiKey(context)));
-    // If a key already exists, register models immediately.
-    registerModels(context);
+    const provider = new provider_1.KIConnectChatProvider(context);
+    context.subscriptions.push(provider, vscode.lm.registerLanguageModelChatProvider('kiconnect', provider), context.secrets.onDidChange(event => {
+        if (event.key === provider_1.SECRET_KEY)
+            provider.refresh();
+    }), vscode.commands.registerCommand('kiconnect.setApiKey', async () => {
+        const key = await vscode.window.showInputBox({
+            prompt: 'Gib deinen persönlichen KI:connect-API-Schlüssel ein', ignoreFocusOut: true, password: true,
+            validateInput: value => value.trim() ? undefined : 'Bitte gib einen API-Schlüssel ein.',
+        });
+        if (!key?.trim())
+            return;
+        try {
+            const models = await new api_1.KIConnectAPI(key.trim()).getModels(AbortSignal.timeout(15000));
+            if (models.length === 0) {
+                vscode.window.showErrorMessage('KI:connect liefert für diesen Schlüssel keine Modelle. Prüfe die Modellfreigaben in deinem KI:connect-Konto. Der bisherige Schlüssel bleibt erhalten.');
+                return;
+            }
+            await context.secrets.store(provider_1.SECRET_KEY, key.trim());
+            vscode.window.showInformationMessage(`KI:connect: Schlüssel geprüft, ${models.length} Modelle gefunden. Im Chat unten ein KI:connect-Modell auswählen. Modelle mit Werkzeugunterstützung sind im Agent-Modus verfügbar.`);
+        }
+        catch (error) {
+            const detail = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            vscode.window.showErrorMessage(`KI:connect: Schlüssel konnte nicht geprüft werden: ${detail} Der bisherige Schlüssel bleibt erhalten.`);
+        }
+    }), vscode.commands.registerCommand('kiconnect.openChat', async () => {
+        try {
+            const key = await context.secrets.get(provider_1.SECRET_KEY);
+            if (!key) {
+                vscode.window.showErrorMessage('Bitte zuerst „KI:connect: API-Schlüssel hinterlegen“ ausführen.');
+                return;
+            }
+            const models = await new api_1.KIConnectAPI(key).getModels(AbortSignal.timeout(15000));
+            if (!models.length) {
+                vscode.window.showErrorMessage('KI:connect liefert keine Chatmodelle für diesen Schlüssel.');
+                return;
+            }
+            const selected = await vscode.window.showQuickPick(models.map(model => ({ label: model.name, description: model.id, modelId: model.id })), { title: 'KI:connect: Chatmodell auswählen', placeHolder: 'Modell wählen – öffnet den Textchat im Ask-Modus' });
+            if (!selected)
+                return;
+            await vscode.commands.executeCommand('workbench.action.chat.open', {
+                mode: 'ask', modelSelector: { vendor: 'kiconnect', id: selected.modelId },
+            });
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`KI:connect: Chat konnte nicht geöffnet werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+        }
+    }), vscode.commands.registerCommand('kiconnect.clearApiKey', async () => {
+        await context.secrets.delete(provider_1.SECRET_KEY);
+        vscode.window.showInformationMessage('Der KI:connect-API-Schlüssel wurde entfernt.');
+    }));
 }
-function deactivate() {
-    // VS Code disposes all subscriptions automatically.
-}
+function deactivate() { }
 //# sourceMappingURL=extension.js.map

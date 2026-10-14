@@ -1,87 +1,135 @@
-import fetch, { RequestInit, Response } from 'node-fetch';
+import { supportsTools } from './models';
 
-/**
- * Minimal client for the KI:connect OpenAI‑compatible API.
- * The base URL is taken from the public documentation – adjust if it changes.
- */
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'tool';
+  content: string;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+}
+
+export interface ChatOptions {
+  tools?: Array<{ type: 'function'; function: { name: string; description: string; parameters: object } }>;
+  tool_choice?: 'auto' | 'required';
+}
+
+export type ChatChunk = string | { callId: string; name: string; input: object };
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  toolCalling: boolean;
+}
+
+/** Client für die OpenAI-kompatible KI:connect-API mit der nativen fetch-Funktion von Node.js. */
 export class KIConnectAPI {
-  private readonly baseUrl: string = 'https://chat.kiconnect.nrw/api/v1';
-  private readonly token: string;
+  private readonly baseUrl = 'https://chat.kiconnect.nrw/api/v1';
 
-  constructor(token: string) {
-    this.token = token;
-  }
+  constructor(private readonly token: string) {}
 
-  /** Helper to perform an authenticated request */
-  private async request<T>(endpoint: string, init?: RequestInit): Promise<T> {
-    const url = `${this.baseUrl}/${endpoint}`;
-    const response = await fetch(url, {
+  private async request(endpoint: string, init: RequestInit = {}): Promise<Response> {
+    const response = await fetch(`${this.baseUrl}/${endpoint}`, {
       ...init,
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-        ...(init?.headers as any),
-      },
+      headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
     });
     if (!response.ok) {
-      const errTxt = await response.text();
-      throw new Error(`KIConnect API error ${response.status}: ${errTxt}`);
+      // Serverantworten können Zugangsdaten enthalten und werden deshalb nicht in Fehlermeldungen übernommen.
+      throw new Error(`KI:connect-Anfrage fehlgeschlagen (HTTP ${response.status}). Prüfe deinen API-Schlüssel und die Modellfreigaben.`);
     }
-    return (await response.json()) as T;
+    return response;
   }
 
-  /** Retrieve the list of available models */
-  async getModels(): Promise<Array<{ id: string; name: string }>> {
-    // Assuming the endpoint returns { data: [{ id, object }...] } similar to OpenAI
-    const result = await this.request<any>('models');
-    // Transform to simple {id, name}
-    return result.data.map((m: any) => ({ id: m.id, name: m.id }));
+  async getModels(signal?: AbortSignal): Promise<ModelInfo[]> {
+    const response = await this.request('models', { signal });
+    const result = await response.json();
+    if (!Array.isArray(result.data) || result.data.some((m: ModelInfo) => !m || typeof m.id !== 'string' || !m.id)) {
+      throw new Error('KI:connect hat eine ungültige Modellliste zurückgegeben.');
+    }
+    return result.data.filter((m: ModelInfo) => !/embed|rerank/i.test(`${m.id} ${m.name ?? ''}`)).map((m: ModelInfo) => ({ id: m.id, name: typeof m.name === 'string' ? m.name : m.id, toolCalling: supportsTools(m) }));
   }
 
-  /** Send a chat request and return a streamed async iterator of strings */
-  async *chat(modelId: string, messages: Array<{ role: string; content: string }>): AsyncIterableIterator<string> {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: modelId,
-
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        stream: true,
-      }),
+  async *chat(modelId: string, messages: ChatMessage[], signal?: AbortSignal, options: ChatOptions = {}): AsyncIterableIterator<ChatChunk> {
+    const response = await this.request('chat/completions', {
+      method: 'POST', signal,
+      body: JSON.stringify({ model: modelId, messages, stream: true, ...options }),
     });
-    if (!response.ok) {
-      const errTxt = await response.text();
-      throw new Error(`Chat request failed ${response.status}: ${errTxt}`);
-    }
-    // The API is OpenAI‑compatible streaming via Server‑Sent Events (data: ...)
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder('utf-8');
+    if (!response.body) throw new Error('KI:connect hat keinen Antwortdatenstrom zurückgegeben.');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
     let buffer = '';
-    while (reader) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      // split on newlines, each line prefixed with "data: "
-      const lines = buffer.split(/\r?\n/);
-      // keep incomplete last line
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const payload = line.slice(6).trim();
-          if (payload === '[DONE]') return;
-          try {
-            const parsed = JSON.parse(payload);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) yield content;
-          } catch {
-            // ignore malformed lines
+    const calls = new Map<number, { id: string; name: string; arguments: string }>();
+    let emittedCalls = 0;
+    const finishCalls = (): ChatChunk[] => {
+      const completed = [...calls.entries()].sort(([a], [b]) => a - b).map(([, call]) => {
+        if (!call.id || !call.name) throw new Error('KI:connect hat einen unvollständigen Werkzeugaufruf zurückgegeben.');
+        if (!options.tools?.some(tool => tool.function.name === call.name)) {
+          throw new Error(`KI:connect hat ein nicht verfügbares Werkzeug angefordert: ${call.name}`);
+        }
+        const input: unknown = JSON.parse(call.arguments);
+        if (!input || typeof input !== 'object' || Array.isArray(input)) {
+          throw new Error('Die Werkzeugargumente von KI:connect müssen ein JSON-Objekt sein.');
+        }
+        return { callId: call.id, name: call.name, input };
+      });
+      calls.clear();
+      emittedCalls += completed.length;
+      return completed;
+    };
+    const parse = (line: string): { chunks: ChatChunk[]; done?: boolean } => {
+      if (!line.startsWith('data:')) return { chunks: [] };
+      const payload = line.slice(5).trim();
+      if (!payload) return { chunks: [] };
+      if (payload === '[DONE]') return { chunks: finishCalls(), done: true };
+      const parsed = JSON.parse(payload);
+      if (parsed.error) throw new Error('KI:connect hat einen Fehler im Antwortdatenstrom gemeldet.');
+      const choice = parsed.choices?.[0];
+      const delta = choice?.delta;
+      const chunks: ChatChunk[] = [];
+      if (typeof delta?.content === 'string' && delta.content) chunks.push(delta.content);
+      for (const fragment of delta?.tool_calls ?? []) {
+        if (!Number.isInteger(fragment.index) || fragment.index < 0) throw new Error('Ungültiger Index eines Werkzeugaufrufs.');
+        const call = calls.get(fragment.index) ?? { id: '', name: '', arguments: '' };
+        if (typeof fragment.id === 'string') call.id = fragment.id;
+        if (typeof fragment.function?.name === 'string') call.name += fragment.function.name;
+        if (typeof fragment.function?.arguments === 'string') call.arguments += fragment.function.arguments;
+        calls.set(fragment.index, call);
+      }
+      if (choice?.finish_reason === 'length' || choice?.finish_reason === 'content_filter') {
+        throw new Error(`Die KI:connect-Antwort wurde beendet: ${choice.finish_reason}.`);
+      }
+      if (choice?.finish_reason) chunks.push(...finishCalls());
+      return { chunks };
+    };
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? '';
+        if (done && buffer) { lines.push(buffer); buffer = ''; }
+        for (const line of lines) {
+          const event = parse(line);
+          for (const chunk of event.chunks) yield chunk;
+          if (event.done) {
+            if (options.tool_choice === 'required' && !emittedCalls) throw new Error('KI:connect hat den erforderlichen Werkzeugaufruf nicht zurückgegeben.');
+            return;
           }
         }
+        if (done) {
+          // Werkzeugaufrufe benötigen ein Abschlussereignis; abgeschnittene Argumente werden nicht weitergegeben.
+          if (calls.size) throw new Error('Der KI:connect-Antwortdatenstrom endete mit einem unvollständigen Werkzeugaufruf.');
+          if (options.tool_choice === 'required' && !emittedCalls) throw new Error('KI:connect hat den erforderlichen Werkzeugaufruf nicht zurückgegeben.');
+          break;
+        }
       }
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
     }
   }
 }
