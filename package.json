@@ -3,7 +3,8 @@
   "displayName": "KI:connect VS Code Extension",
   "description": "Unofficial VS Code extension that adds KI:connect models to the built‑in chat.",
   "version": "0.0.1",
-  "publisher": "your-publisher-id",
+  "author": "Omed Ababakir",
+  "publisher": "omed-ababakir",
   "engines": {
     "vscode": "^1.92.0"
   },
@@ -32,9 +33,7 @@
   "devDependencies": {
     "@types/vscode": "^1.92.0",
     "typescript": "^5.4.0"
-
   },
   "dependencies": {
     "node-fetch": "^3.3.2"
-  }
-}
+}}
