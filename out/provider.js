@@ -34,6 +34,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.KIConnectChatProvider = exports.SECRET_KEY = void 0;
+const tokenizer_1 = require("./tokenizer");
+const models_1 = require("./models");
 const vscode = __importStar(require("vscode"));
 const api_1 = require("./api");
 exports.SECRET_KEY = 'kiconnect.apiKey';
@@ -69,13 +71,17 @@ class KIConnectChatProvider {
             return [];
         return this.withCancellation(token, async (signal) => {
             const models = await new api_1.KIConnectAPI(key).getModels(signal);
-            return models.map(model => ({
-                id: model.id, name: `KI:connect: ${model.name}`, family: model.id, version: '1',
-                // Zurückhaltende Vorgaben, da die Modellliste keine verlässlichen Tokengrenzen garantiert.
-                maxInputTokens: 8192, maxOutputTokens: 2048,
-                detail: model.toolCalling ? 'KI:connect · Werkzeuge' : 'KI:connect · Textchat',
-                capabilities: { imageInput: false, toolCalling: model.toolCalling },
-            }));
+            const config = vscode.workspace?.getConfiguration('kiconnect');
+            return models.map(model => {
+                const budget = (0, models_1.tokenBudget)(model, config?.get('fallbackContextWindow'), config?.get('fallbackMaxOutputTokens'));
+                return {
+                    id: model.id, name: `KI:connect: ${model.name}`, family: model.id, version: '1',
+                    ...budget,
+                    tooltip: `KI:connect · ${budget.maxInputTokens.toLocaleString('de-DE')} Eingabe- und ${budget.maxOutputTokens.toLocaleString('de-DE')} Antworttokens${model.contextWindow || model.maxInputTokens ? '' : ' (konfigurierte Vorgabe)'}`,
+                    detail: model.toolCalling ? 'KI:connect · Werkzeuge' : 'KI:connect · Textchat',
+                    capabilities: { imageInput: false, toolCalling: model.toolCalling },
+                };
+            });
         });
     }
     convertMessages(messages) {
@@ -133,6 +139,8 @@ class KIConnectChatProvider {
                 } })),
             tool_choice: options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : 'auto',
         } : {};
+        if (model.maxOutputTokens > 0)
+            requestOptions.max_tokens = model.maxOutputTokens;
         const converted = this.convertMessages(messages);
         await this.withCancellation(token, async (signal) => {
             for await (const chunk of new api_1.KIConnectAPI(key).chat(model.id, converted, signal, requestOptions)) {
@@ -146,8 +154,10 @@ class KIConnectChatProvider {
     }
     async provideTokenCount(_model, text, _token) {
         const content = typeof text === 'string' ? text : JSON.stringify(this.convertMessages([text]));
-        // Zurückhaltende Schätzung anhand der UTF-8-Bytes, kein modellspezifischer Tokenizer.
-        return new TextEncoder().encode(content).length;
+        const count = (0, tokenizer_1.countTokens)(content);
+        // Harmony-Texttokenizer für GPT-OSS; bei anderen Familien Referenzzählung mit Reserve.
+        const textTokens = /gpt[-_ ]?oss/i.test(_model.id ?? '') ? count : Math.ceil(count * 1.1);
+        return textTokens + (typeof text === 'string' ? 0 : 8);
     }
 }
 exports.KIConnectChatProvider = KIConnectChatProvider;

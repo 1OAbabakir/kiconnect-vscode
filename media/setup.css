@@ -1,0 +1,44 @@
+/* Editorial layout; editor-owned colors keep every VS Code theme usable. */
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-family: var(--vscode-font-family); font-size: 14px; line-height: 1.6; }
+main { max-width: 1000px; margin: auto; padding: 38px 52px 20px; }
+header { display: flex; justify-content: space-between; align-items: center; color: var(--vscode-descriptionForeground); }
+.brand { font-size: 26px; font-weight: 750; letter-spacing: -.8px; color: var(--vscode-editor-foreground); }
+.accent { color: var(--vscode-textLink-foreground); }
+nav { margin: 36px 0 48px; }
+ol { padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); list-style: none; gap: 12px; }
+li { border-top: 2px solid var(--vscode-panel-border); padding-top: 12px; color: var(--vscode-descriptionForeground); }
+li span { margin-right: 10px; font-variant-numeric: tabular-nums; }
+li[aria-current], li.done { border-color: var(--vscode-textLink-foreground); }
+li[aria-current] { color: var(--vscode-textLink-foreground); font-weight: 650; }
+section { animation: enter .24s ease-out; }
+[hidden] { display: none !important; }
+.eyebrow { color: var(--vscode-textLink-foreground); margin: 0 0 16px; }
+h1 { font-size: clamp(34px, 5.5vw, 62px); line-height: 1.06; letter-spacing: -2px; margin: 0 0 24px; font-weight: 700; }
+.intro { font-size: 17px; max-width: 640px; color: var(--vscode-descriptionForeground); margin-bottom: 28px; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0; }
+article, .tip { border-top: 1px solid var(--vscode-panel-border); padding-top: 14px; }
+h2 { font-size: 14px; margin: 0 0 6px; }
+article p, .tip p { color: var(--vscode-descriptionForeground); margin: 0; }
+button { font: inherit; cursor: pointer; border: 1px solid var(--vscode-button-border, transparent); border-radius: 3px; padding: 10px 18px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+button:hover { background: var(--vscode-button-hoverBackground); }
+button:disabled { opacity: .6; cursor: wait; }
+button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+button.text { background: transparent; color: var(--vscode-textLink-foreground); padding-left: 0; padding-right: 0; margin-left: 18px; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--vscode-focusBorder); outline-offset: 3px; }
+form { margin-top: 28px; max-width: 660px; }
+label { display: block; font-weight: 600; margin: 0 0 8px; }
+.input-row { display: flex; gap: 8px; }
+input, select { font: inherit; border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)); padding: 12px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border-radius: 3px; min-width: 0; }
+input { flex: 1; width: 100%; }
+input::placeholder { color: var(--vscode-input-placeholderForeground); }
+select { width: 100%; max-width: 660px; }
+.hint { color: var(--vscode-descriptionForeground); font-size: 12px; max-width: 660px; margin: 12px 0 24px; }
+.tip { max-width: 660px; margin: 28px 0; }
+#status { color: var(--vscode-editor-foreground); min-height: 25px; overflow-wrap: anywhere; }
+footer { border-top: 1px solid var(--vscode-panel-border); margin-top: 30px; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; color: var(--vscode-descriptionForeground); font-size: 12px; }
+@keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 600px) { main { padding: 24px; } nav { margin: 28px 0; } li { font-size: 12px; } li span { display: block; } .facts { grid-template-columns: 1fr; gap: 18px; } h1 { letter-spacing: -1px; } #open-chat { display: block; width: 100%; } #change-key { margin: 12px 0 0; } }
+@media (prefers-reduced-motion: reduce) { section { animation: none; } }

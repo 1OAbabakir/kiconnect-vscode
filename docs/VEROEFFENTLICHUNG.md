@@ -58,8 +58,8 @@ npm test
 npm run package
 ```
 
-Das Ergebnis liegt unter `dist/kiconnect-vscode-0.1.0.vsix`. `npm run package` verwendet die im Projekt festgelegte Version des offiziellen Werkzeugs `@vscode/vsce`. Als vorgesehene Herausgeberkennung ist `omed-ababakir` eingetragen; sie wurde aus dem vorhandenen GitHub-Stand übernommen. Ein tatsächliches zugehöriges Publisher-Konto ist noch nicht bestätigt. Das Paket ist damit nur eine lokale Vorschau, nicht das endgültige öffentliche Installationspaket.
+Das Ergebnis liegt unter `dist/kiconnect-vscode-1.0.0.vsix`. `npm run package` verwendet die im Projekt festgelegte Version von `@vscode/vsce`. Das Paket enthält die Herausgeberkennung `omed-ababakir`. Für den Marketplace-Upload muss dieselbe Kennung im eigenen Publisher-Konto verwendet werden.
 
 Die API-Typen sind auf die unterstützte VS-Code-Mindestversion 1.104.0 festgelegt. Die Entwicklungswerkzeuge benötigen Node.js ab Version 22. Entwicklungsdateien, Quellkarten und Abhängigkeiten sind über `.vscodeignore` vom VSIX ausgeschlossen.
 
-Nach dem Anlegen des Publishers die bestätigte ID abgleichen und bei Abweichung im Manifest ersetzen, die Vorschau neu bauen und das endgültige Paket erneut prüfen. Erst dieses Paket im Marketplace hochladen. Der GitHub-Prüfworkflow baut nur ein Paket und führt keine automatische Veröffentlichung aus.
+Das VSIX im Marketplace unter dem passenden Publisher über „New extension → Visual Studio Code“ hochladen. Falls die eigene Publisher-ID abweicht, diese im Manifest ändern und das Paket neu bauen. Der GitHub-Prüfworkflow baut nur ein Paket und führt keine automatische Veröffentlichung aus.

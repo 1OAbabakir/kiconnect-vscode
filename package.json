@@ -1,8 +1,8 @@
 {
   "name": "kiconnect-vscode",
   "displayName": "KI:connect",
-  "description": "Inoffizieller KI:connect-Client für den VS-Code-Chat – mit gestreamten Antworten und Werkzeugaufrufen für geeignete Modelle.",
-  "version": "0.1.0",
+  "description": "KI:connect im integrierten VS-Code-Chat – mit interaktiver Einrichtung, Modellwahl, Streaming und Werkzeugunterstützung.",
+  "version": "1.0.0",
   "publisher": "omed-ababakir",
   "engines": {
     "vscode": "^1.104.0",
@@ -12,7 +12,8 @@
     "AI"
   ],
   "activationEvents": [
-    "onLanguageModelChatProvider:kiconnect"
+    "onLanguageModelChatProvider:kiconnect",
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -28,6 +29,10 @@
       {
         "command": "kiconnect.openChat",
         "title": "KI:connect: Chat öffnen"
+      },
+      {
+        "command": "kiconnect.startSetup",
+        "title": "KI:connect: Einrichtung starten"
       }
     ],
     "languageModelChatProviders": [
@@ -36,7 +41,26 @@
         "displayName": "KI:connect",
         "managementCommand": "kiconnect.setApiKey"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "KI:connect",
+      "properties": {
+        "kiconnect.fallbackContextWindow": {
+          "type": "integer",
+          "default": 131072,
+          "minimum": 1024,
+          "maximum": 2097152,
+          "description": "Kontextbudget inklusive Antwort, falls die API keine Kontextgröße meldet. Eine Vorgabe der Erweiterung, keine bestätigte Servergrenze."
+        },
+        "kiconnect.fallbackMaxOutputTokens": {
+          "type": "integer",
+          "default": 8192,
+          "minimum": 1,
+          "maximum": 131072,
+          "description": "Reserviertes Antwortbudget, falls die API keine Ausgabegrenze meldet."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

@@ -1,3 +1,5 @@
+import { openChat, SELECTED_MODEL_KEY } from './chat';
+import { registerOnboarding } from './onboarding';
 import * as vscode from 'vscode';
 import { KIConnectChatProvider, SECRET_KEY } from './provider';
 import { KIConnectAPI } from './api';
@@ -29,35 +31,19 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showErrorMessage(`KI:connect: Schlüssel konnte nicht geprüft werden: ${detail} Der bisherige Schlüssel bleibt erhalten.`);
       }
     }),
-    vscode.commands.registerCommand('kiconnect.openChat', async () => {
-      try {
-        const key = await context.secrets.get(SECRET_KEY);
-        if (!key) {
-          vscode.window.showErrorMessage('Bitte zuerst „KI:connect: API-Schlüssel hinterlegen“ ausführen.');
-          return;
-        }
-        const models = await new KIConnectAPI(key).getModels(AbortSignal.timeout(15000));
-        if (!models.length) {
-          vscode.window.showErrorMessage('KI:connect liefert keine Chatmodelle für diesen Schlüssel.');
-          return;
-        }
-        const selected = await vscode.window.showQuickPick(
-          models.map(model => ({ label: model.name, description: model.id, modelId: model.id })),
-          { title: 'KI:connect: Chatmodell auswählen', placeHolder: 'Modell wählen – öffnet den Textchat im Ask-Modus' }
-        );
-        if (!selected) return;
-        await vscode.commands.executeCommand('workbench.action.chat.open', {
-          mode: 'ask', modelSelector: { vendor: 'kiconnect', id: selected.modelId },
-        });
-      } catch (error) {
-        vscode.window.showErrorMessage(`KI:connect: Chat konnte nicht geöffnet werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
-      }
-    }),
+    vscode.commands.registerCommand('kiconnect.openChat', (modelId?: string) => openChat(context, modelId)),
     vscode.commands.registerCommand('kiconnect.clearApiKey', async () => {
       await context.secrets.delete(SECRET_KEY);
       vscode.window.showInformationMessage('Der KI:connect-API-Schlüssel wurde entfernt.');
     })
   );
+  const configurationChanges = vscode.workspace?.onDidChangeConfiguration(event => {
+    if (event.affectsConfiguration('kiconnect')) provider.refresh();
+  });
+  if (configurationChanges) context.subscriptions.push(configurationChanges);
+  const selectedModel = context.globalState.get<string>(SELECTED_MODEL_KEY);
+  if (typeof selectedModel === 'string') void openChat(context, selectedModel);
+  registerOnboarding(context);
 }
 
 export function deactivate(): void {}

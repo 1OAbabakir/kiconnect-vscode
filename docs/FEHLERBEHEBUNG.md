@@ -37,4 +37,4 @@ Ein Vergleich im Ask-Modus kann helfen, reinen Modellzugriff und Werkzeugverarbe
 
 ## Lange Gespräche oder große Projekte scheitern
 
-Die Erweiterung meldet derzeit feste Modellbudgets und schätzt Tokens anhand der UTF-8-Bytes. Ein neues Gespräch mit weniger Kontext beginnen. Die Vorgaben sind keine Ermittlung der tatsächlichen Modellgrenzen; Details stehen in der [Architektur](ARCHITEKTUR.md).
+Ab Version 1.0.0 verwendet die Erweiterung lokale o200k-BPE-Zählung und standardmäßig 131.072 Tokens Gesamtkontext, sofern die API keine Grenzen meldet. Nach dem Update das Fenster neu laden und ein neues Gespräch beginnen. In den Modelleigenschaften wird das gemeldete Eingabe- und Antwortbudget angezeigt. Prüfen, ob `kiconnect.fallbackContextWindow` ausdrücklich auf einen kleineren Wert gesetzt ist. Die Zusammenfassung steuert weiterhin VS Code; Details stehen in der [Architektur](ARCHITEKTUR.md).

@@ -20,7 +20,7 @@
 4. Oben **KI:connect-Erweiterung starten** auswählen und `F5` drücken.
 5. Im neuen Fenster, dem Erweiterungsentwicklungsfenster, weiterarbeiten. Dort ist die Erweiterung aktiv.
 
-Die zusätzliche Browserkonfiguration ist für diese Erweiterung nicht erforderlich.
+Beim ersten Start führt das interaktive Tutorial durch die Einrichtung.
 
 ## Schlüssel hinterlegen
 
@@ -47,8 +47,10 @@ Nach Änderungen am TypeScript-Code `npm run compile` ausführen. Im Entwicklung
 
 ## Installierbares Paket
 
-Das aktuelle lokale Vorschaupaket wird mit `npm run package` unter `dist/kiconnect-vscode-0.1.0.vsix` erstellt. Es kann in VS Code über **Erweiterungen → … → Aus VSIX installieren…** installiert werden. Solange das persönliche Marketplace-Publisher-Konto offen ist, dient es nur zur lokalen Erprobung.
-
-Eine eventuell lokal noch vorhandene Datei `kiconnect-vscode-0.0.1.vsix` stammt aus dem alten Stand und enthält die aktuellen Änderungen nicht. Sie wird nicht mehr im Repository ausgeliefert.
+Das aktuelle Installationspaket wird mit `npm run package` unter `dist/kiconnect-vscode-1.0.0.vsix` erstellt. Es kann in VS Code über **Erweiterungen → … → Aus VSIX installieren…** installiert werden.
 
 Wie ein neues Paket geprüft und erstellt wird, beschreibt [Veröffentlichung](VEROEFFENTLICHUNG.md).
+
+## Standard nach dem Neuladen
+
+Über **KI:connect: Chat öffnen** ein Modell auswählen. Die Erweiterung merkt dieses Modell und öffnet den integrierten Chat beim nächsten Start wieder damit. Die Einrichtung lässt sich jederzeit über **KI:connect: Einrichtung starten** erneut öffnen. Nach Abschluss des Tutorials wird das dort gewählte Modell direkt geöffnet, ohne eine zweite Modellauswahl.

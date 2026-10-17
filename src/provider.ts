@@ -1,3 +1,5 @@
+import { countTokens } from './tokenizer';
+import { tokenBudget } from './models';
 import * as vscode from 'vscode';
 import { ChatMessage, ChatOptions, KIConnectAPI } from './api';
 
@@ -29,13 +31,17 @@ export class KIConnectChatProvider implements vscode.LanguageModelChatProvider, 
     if (!key) return [];
     return this.withCancellation(token, async signal => {
       const models = await new KIConnectAPI(key).getModels(signal);
-      return models.map(model => ({
-        id: model.id, name: `KI:connect: ${model.name}`, family: model.id, version: '1',
-        // Zurückhaltende Vorgaben, da die Modellliste keine verlässlichen Tokengrenzen garantiert.
-        maxInputTokens: 8192, maxOutputTokens: 2048,
-        detail: model.toolCalling ? 'KI:connect · Werkzeuge' : 'KI:connect · Textchat',
-        capabilities: { imageInput: false, toolCalling: model.toolCalling },
-      }));
+      const config = vscode.workspace?.getConfiguration('kiconnect');
+      return models.map(model => {
+        const budget = tokenBudget(model, config?.get<number>('fallbackContextWindow'), config?.get<number>('fallbackMaxOutputTokens'));
+        return {
+          id: model.id, name: `KI:connect: ${model.name}`, family: model.id, version: '1',
+          ...budget,
+          tooltip: `KI:connect · ${budget.maxInputTokens.toLocaleString('de-DE')} Eingabe- und ${budget.maxOutputTokens.toLocaleString('de-DE')} Antworttokens${model.contextWindow || model.maxInputTokens ? '' : ' (konfigurierte Vorgabe)'}`,
+          detail: model.toolCalling ? 'KI:connect · Werkzeuge' : 'KI:connect · Textchat',
+          capabilities: { imageInput: false, toolCalling: model.toolCalling },
+        };
+      });
     });
   }
 
@@ -96,6 +102,7 @@ export class KIConnectChatProvider implements vscode.LanguageModelChatProvider, 
       } })),
       tool_choice: options.toolMode === vscode.LanguageModelChatToolMode.Required ? 'required' : 'auto',
     } : {};
+    if (model.maxOutputTokens > 0) requestOptions.max_tokens = model.maxOutputTokens;
     const converted = this.convertMessages(messages);
     await this.withCancellation(token, async signal => {
       for await (const chunk of new KIConnectAPI(key).chat(model.id, converted, signal, requestOptions)) {
@@ -109,7 +116,9 @@ export class KIConnectChatProvider implements vscode.LanguageModelChatProvider, 
 
   async provideTokenCount(_model: vscode.LanguageModelChatInformation, text: string | vscode.LanguageModelChatRequestMessage, _token: vscode.CancellationToken): Promise<number> {
     const content = typeof text === 'string' ? text : JSON.stringify(this.convertMessages([text]));
-    // Zurückhaltende Schätzung anhand der UTF-8-Bytes, kein modellspezifischer Tokenizer.
-    return new TextEncoder().encode(content).length;
+    const count = countTokens(content);
+    // Harmony-Texttokenizer für GPT-OSS; bei anderen Familien Referenzzählung mit Reserve.
+    const textTokens = /gpt[-_ ]?oss/i.test(_model.id ?? '') ? count : Math.ceil(count * 1.1);
+    return textTokens + (typeof text === 'string' ? 0 : 8);
   }
 }

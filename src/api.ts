@@ -1,4 +1,4 @@
-import { supportsTools } from './models';
+import { supportsTools, readTokenMetadata, TokenMetadata } from './models';
 
 export interface ToolCall {
   id: string;
@@ -14,13 +14,14 @@ export interface ChatMessage {
 }
 
 export interface ChatOptions {
+  max_tokens?: number;
   tools?: Array<{ type: 'function'; function: { name: string; description: string; parameters: object } }>;
   tool_choice?: 'auto' | 'required';
 }
 
 export type ChatChunk = string | { callId: string; name: string; input: object };
 
-export interface ModelInfo {
+export interface ModelInfo extends TokenMetadata {
   id: string;
   name: string;
   toolCalling: boolean;
@@ -50,7 +51,7 @@ export class KIConnectAPI {
     if (!Array.isArray(result.data) || result.data.some((m: ModelInfo) => !m || typeof m.id !== 'string' || !m.id)) {
       throw new Error('KI:connect hat eine ungültige Modellliste zurückgegeben.');
     }
-    return result.data.filter((m: ModelInfo) => !/embed|rerank/i.test(`${m.id} ${m.name ?? ''}`)).map((m: ModelInfo) => ({ id: m.id, name: typeof m.name === 'string' ? m.name : m.id, toolCalling: supportsTools(m) }));
+    return result.data.filter((m: ModelInfo) => !/embed|rerank/i.test(`${m.id} ${m.name ?? ''}`)).map((m: ModelInfo) => ({ id: m.id, name: typeof m.name === 'string' ? m.name : m.id, toolCalling: supportsTools(m), ...readTokenMetadata(m as unknown as Record<string, unknown>) }));
   }
 
   async *chat(modelId: string, messages: ChatMessage[], signal?: AbortSignal, options: ChatOptions = {}): AsyncIterableIterator<ChatChunk> {

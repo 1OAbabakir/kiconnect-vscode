@@ -2,7 +2,7 @@
 const { mkdirSync } = require('node:fs');
 const { spawnSync } = require('node:child_process');
 const { name, version, publisher } = require('../package.json');
-process.stderr.write(`Lokale Veröffentlichungsvorschau für Publisher „${publisher}“. Vor dem Upload das zugehörige Herausgeberkonto bestätigen.\n`);
+process.stderr.write(`VSIX für Publisher „${publisher}“ erstellen.\n`);
 mkdirSync('dist', { recursive: true });
 const vsce = require.resolve('@vscode/vsce/vsce');
 const result = spawnSync(process.execPath, [vsce, 'package', '--no-dependencies', '--out', `dist/${name}-${version}.vsix`], { stdio: 'inherit' });

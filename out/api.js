@@ -26,7 +26,7 @@ class KIConnectAPI {
         if (!Array.isArray(result.data) || result.data.some((m) => !m || typeof m.id !== 'string' || !m.id)) {
             throw new Error('KI:connect hat eine ungültige Modellliste zurückgegeben.');
         }
-        return result.data.filter((m) => !/embed|rerank/i.test(`${m.id} ${m.name ?? ''}`)).map((m) => ({ id: m.id, name: typeof m.name === 'string' ? m.name : m.id, toolCalling: (0, models_1.supportsTools)(m) }));
+        return result.data.filter((m) => !/embed|rerank/i.test(`${m.id} ${m.name ?? ''}`)).map((m) => ({ id: m.id, name: typeof m.name === 'string' ? m.name : m.id, toolCalling: (0, models_1.supportsTools)(m), ...(0, models_1.readTokenMetadata)(m) }));
     }
     async *chat(modelId, messages, signal, options = {}) {
         const response = await this.request('chat/completions', {

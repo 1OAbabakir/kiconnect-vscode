@@ -5,9 +5,12 @@
 | Modul | Verantwortung |
 | --- | --- |
 | `src/extension.ts` | Erweiterung aktivieren, Befehle registrieren und Schlüsseländerungen behandeln. |
+| `src/chat.ts` | Modellwahl prüfen, Auswahl merken und integrierten Chat öffnen. |
+| `src/onboarding.ts` | Interaktives Einrichtungstutorial als Webview bereitstellen. |
 | `src/provider.ts` | VS-Code-Provider implementieren, Nachrichten übersetzen und Antwortteile melden. |
 | `src/api.ts` | HTTP-Anfragen, Modellliste und OpenAI-kompatiblen Antwortdatenstrom verarbeiten. |
-| `src/models.ts` | Werkzeugfähigkeit aus Metadaten oder bekannten Familien ableiten. |
+| `src/models.ts` | Werkzeugfähigkeit und Tokenbudgets aus Metadaten beziehungsweise konfigurierten Vorgaben ableiten. |
+| `src/tokenizer/` | Lokale BPE-Tokenzählung mit mitgelieferten o200k-Rängen. |
 | `test/chat.test.cjs` | Verhalten mit simulierten HTTP-Antworten und einer kleinen VS-Code-Testumgebung prüfen. |
 
 Es wird genau ein Provider unter der Kennung `kiconnect` registriert. Er liefert mehrere Modelle. Die Kennungen in `package.json` und bei der Registrierung müssen übereinstimmen.
@@ -43,7 +46,7 @@ Explizite Angaben in `capabilities` oder `info.meta.capabilities` haben Vorrang.
 
 Fehlen verwertbare Metadaten, werden GPT-OSS, Qwen 3 und Mistral Small 3/4 anhand ihres Namens als toolfähig eingeordnet. Das ersetzt keinen Test der konkreten Bereitstellung. E5-Mistral und unbekannte Familien bleiben ohne positive Angaben Textmodelle. Modelle mit `embed` oder `rerank` in Kennung oder Name werden aus der Chatmodellliste entfernt.
 
-Bilder werden nicht unterstützt. Die gemeldeten Tokenbudgets sind feste Vorgaben; die Tokenzählung schätzt anhand der UTF-8-Bytes. Die Erweiterung liefert keine modellspezifische Tokenisierung.
+Bilder werden nicht unterstützt. Die gemeldeten Tokenbudgets verwenden API-Grenzen und bei fehlenden Angaben einstellbare Vorgaben; die Texttokenisierung verwendet lokal o200k-BPE für GPT-OSS. Andere Modellfamilien erhalten eine Referenzzählung mit Reserve. VS Code verwaltet den Gesprächskontext.
 
 ## Abbruch und Lebenszyklus
 

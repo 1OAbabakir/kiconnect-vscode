@@ -1,28 +1,19 @@
-# Technischer Prüfstand für Version 0.1.0
+# Technischer Prüfstand 1.0.0
 
-Stand: 15. Oktober 2026. Dieser Bericht beschreibt die Vorbereitung der lokalen Veröffentlichungsvorschau, keine erfolgte Marketplace-Veröffentlichung und keine rechtliche Freigabe.
+## Automatisiert geprüft
 
-## Durchgeführte Prüfungen
+- TypeScript-Kompilierung und 30 Tests des produktiven Providers und API-Clients bestanden.
+- Modellabfrage, Schlüsselprüfung und sichere Ablage mit simulierten HTTP-Antworten.
+- Streaming, Gesprächsverlauf, parallele Werkzeugaufrufe und Abbrüche.
+- Tutorial, direkte Modellauswahl und Wiederherstellung nach dem Neuladen.
+- Lokale o200k-BPE-Zählung einschließlich Unicode, Werkzeugergebnissen und langen Codebezeichnern.
+- 199.998 Tokenizer-Ränge gegen den offiziellen SHA-256-Hash geprüft.
+- VSIX erstellt; Lizenzdatei und Tokenizer-Daten im Paket enthalten.
 
-- TypeScript-Kompilierung mit den API-Typen für VS Code 1.104.0 erfolgreich.
-- 21 automatisierte Tests für Modellliste, Schlüsselprüfung, Verlauf, Streaming, Werkzeuge und Abbrüche erfolgreich.
-- Installation der Abhängigkeiten aus dem Lockfile, Tests und Paketierung in einer isolierten Arbeitskopie erfolgreich.
-- Installation des aktuellen VSIX über die VS-Code-Kommandozeile in einem isolierten Erweiterungsverzeichnis erfolgreich.
-- Lokale Dokumentationslinks geprüft.
-- VSIX-Inhalt geprüft: Laufzeitmodule, Projektsymbol, Lizenz und Dokumentation vorhanden; Entwicklungsabhängigkeiten, Tests und Quellkarten ausgeschlossen.
-- Drei voneinander unabhängige Reviews für Code und Tests, Sprache und Außendarstellung sowie Paketierung und Marketplace-Vorbereitung durchgeführt. Festgestellte kleine Dokumentationsabweichungen wurden korrigiert; benannte Testlücken wurden ergänzt.
+## Praktisch noch zu prüfen
 
-Die Prüfung verwendet nachvollziehbare Build- und Testergebnisse. Die Reviews sind ergänzende Kontrollen und kein Ersatz für Ausführungstests.
+Die gemeldete Folge schneller Kontextkomprimierungen wurde im Screenshot bestätigt. Der alte Bytezähler überschätzte normale Textnachrichten deutlich; dieser Zähler wurde durch o200k-BPE ersetzt und das Standardbudget auf 131.072 Tokens erhöht. Eine erneute Prüfung derselben Unterhaltung mit GPT-OSS-120B über die echte KI:connect-API steht aus. Deshalb wird keine vollständige Behebung der Komprimierungsschleife behauptet.
 
-## Praktisch beobachteter Stand
+Nach Installation Fenster neu laden und eine neue Unterhaltung mit KI:connect: GPT-OSS-120B starten. Ask- und Agent-Modus, Folgefragen, Dateikontext und Abbruch praktisch prüfen. Die wiederholte allgemeine Antwort des 120B-Modells ist ohne konkrete Anfrage/Antwort und Live-API-Test nicht abschließend eingegrenzt.
 
-Die normale Modellauswahl wurde während der Entwicklung vom Nutzer in VS Code erfolgreich ausprobiert. Ein vollständiger Live-Agent-Durchlauf mit Werkzeugausführung und anschließender Gesprächsrunde wurde in dieser technischen Abschlussprüfung nicht eigenständig verifiziert.
-
-## Offen vor der öffentlichen Veröffentlichung
-
-- Persönlichen Marketplace-Publisher anlegen und prüfen, ob die vorgesehene Manifest-ID `omed-ababakir` diesem Konto entspricht.
-- Das endgültige Paket nach dieser Änderung erneut bauen und prüfen.
-- Chat und Agent-Werkzeugrunde mit dem endgültigen Paket in der Zielumgebung testen; insbesondere die erklärte Mindestversion berücksichtigen.
-- Die offenen Punkte der [rechtlichen Bestandsaufnahme](RECHTLICHE_PRUEFUNG.md) für den endgültigen Auftritt und die tatsächlich geltenden Dienstbedingungen klären.
-
-Der GitHub-Prüfworkflow führt künftig Tests und Paketbau aus. Sein erfolgreicher Lauf ist erst nach Ausführung auf GitHub belegt.
+VS Code bestimmt den Komprimierungszeitpunkt. Servermetadaten haben Vorrang vor konfigurierten Budgets. Für andere Modellfamilien bleibt die Tokenzählung eine Referenz mit Reserve.
